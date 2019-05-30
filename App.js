@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {Badge, Card, CardItem, Container, Content, Header, Input, Left, Body, Right, Button, Icon, Title, Tab, Tabs, Text, Thumbnail} from 'native-base';
-import {Alert, Platform, FlatList, StyleSheet, ScrollView, TouchableHighlight, View} from 'react-native';
+import {Alert, Platform, FlatList, Image, StyleSheet, ScrollView, TouchableHighlight, View} from 'react-native';
 import {RNCamera} from 'react-native-camera';
 
 const CurrencyFormatter = require('currency-formatter');
@@ -64,13 +64,40 @@ const Styles = StyleSheet.create({
 
 	perUser: {
 		alignItems: 'center',
-		borderColor: '#E3E3E3',
+		borderColor: '#3F51B5',
 		borderRadius: 10,
-		borderWidth: StyleSheet.hairlineWidth,
+		borderWidth: 1,
 		flexDirection: 'column',
 		justifyContent: 'center',
 		margin: 10,
 		padding: 10
+	},
+
+	thumbnail: {
+		borderRadius: 20,
+		height: 40,
+		width: 40
+	},
+
+	letterBall: {
+		alignItems: 'center',
+		backgroundColor: '#CCCCCC',
+		borderRadius: 20,
+		flexDirection: 'column',
+		height: 40,
+		justifyContent: 'center',
+		marginLeft: 10,
+		marginRight: 10,
+		width: 40
+	},
+
+	letter: {
+		fontWeight: 'bold'
+	},
+
+	lineThrough: {
+		textDecorationLine: 'line-through',
+		textDecorationStyle: 'solid'
 	}
 
 });
@@ -104,9 +131,9 @@ export default class App extends Component<Props> {
 		super(props);
 
 		this.state = {
-			name: 'j',
-			item: 'j',
-			price: '10',
+			name: null,
+			item: null,
+			price: null,
 			users: [],
 			orders: [],
 			camera: false
@@ -283,7 +310,7 @@ export default class App extends Component<Props> {
 				this.setState({
 					orders,
 					item: null,
-					value: null
+					price: null
 				});
 
 			} else {
@@ -305,11 +332,11 @@ export default class App extends Component<Props> {
 	 */
 	onRemoveItemHandler () {
 
-		let orders = this.scope.state.orders;
+		const orders = this.scope.state.orders;
 
-		orders = orders.splice(this.index, 1);
+		orders[this.index].deleted = true;
 
-		this.setState({
+		this.scope.setState({
 			orders
 		});
 
@@ -378,7 +405,7 @@ export default class App extends Component<Props> {
 
 		const price = this.state.orders.reduce((previous, current) => {
 
-			return previous + current.price;
+			return (current.deleted === false) ? previous + current.price : previous;
 
 		}, 0.0);
 
@@ -393,7 +420,7 @@ export default class App extends Component<Props> {
 
 		const price = this.state.orders.reduce((previous, current) => {
 
-			return previous + current.price;
+			return (current.deleted === false) ? previous + current.price : previous;
 
 		}, 0.0) * 1.1;
 
@@ -411,17 +438,15 @@ export default class App extends Component<Props> {
 		if (user.image) {
 
 			return (
-				<Thumbnail small source={{uri: `data:image/png;base64,${user.image}`}} style={selectionStyle} />
+				<Image source={{uri: `data:image/png;base64,${user.image}`}} style={[Styles.thumbnail, selectionStyle]} />
 			);
 
 		} else {
 
-			selectionStyle['backgroundColor'] = '#CCCCCC';
-
 			return (
-				<Badge style={selectionStyle}>
-					<Text>{user.letters}</Text>
-				</Badge>
+				<View style={[Styles.letterBall, selectionStyle]}>
+					<Text style={Styles.letter}>{user.letters}</Text>
+				</View>
 			);
 
 		}
@@ -441,7 +466,7 @@ export default class App extends Component<Props> {
 
 					const price = this.state.orders.reduce((previous, current) => {
 
-						return (current.by.name === user.name) ? (previous + current.price) : previous;
+						return ((current.by.name === user.name) && (current.deleted === false)) ? (previous + current.price) : previous;
 
 					}, 0.0);
 
@@ -478,20 +503,22 @@ export default class App extends Component<Props> {
 	/**
 	 *
 	 */
-	renderItem (item, index) {
+	renderItem (item) {
 
 		const order = item.item;
 
 		return (
-			<View key={`order-${index}`} style={[Styles.row, {borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D3D3D3', padding: 3}]}>
-				<Text style={Styles.item}>{order.item}</Text>
+			<View key={`order-${item.index}`} style={[Styles.row, {borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D3D3D3', padding: 3}]}>
+				<Text style={[Styles.item, (order.deleted ? Styles.lineThrough : null)]}>{order.item}</Text>
 				<View style={Styles.dashes} />
-				<Text style={Styles.price}>{`${this.format(order.price)} / ${this.format(order.price * 1.1)}`}</Text>
-				<TouchableHighlight onPress={this.onRemoveItemHandler.bind({scope: this, index})} style={{margin: 5}}>
-					<Badge danger>
-						<Icon name='md-remove' style={{color: 'white'}} />
-					</Badge>
-				</TouchableHighlight>
+				<Text style={[Styles.price, (order.deleted ? Styles.lineThrough : null)]}>{`${this.format(order.price)} / ${this.format(order.price * 1.1)}`}</Text>
+				{order.deleted === false ? (
+					<TouchableHighlight onPress={this.onRemoveItemHandler.bind({scope: this, index: item.index})} style={{margin: 5}}>
+						<Badge danger style={{width: 15, height: 15}}>
+							<Icon name='md-remove' style={{color: 'white', marginTop: -7.2}} />
+						</Badge>
+					</TouchableHighlight>
+				) : null}
 			</View>
 		);
 
@@ -500,15 +527,15 @@ export default class App extends Component<Props> {
 	/**
 	 *
 	 */
-	renderItemThumbnail (item, index) {
+	renderItemThumbnail (item) {
 
 		const order = item.item;
 
 		return (
-			<View key={`order-${index}`}  style={[Styles.row, {borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D3D3D3', padding: 3}]}>
-				<Text style={Styles.item}>{order.item}</Text>
+			<View key={`order-${item.index}`}  style={[Styles.row, {borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#D3D3D3', padding: 3}]}>
+				<Text style={[Styles.item, (order.deleted ? Styles.lineThrough : null)]}>{order.item}</Text>
 				<View style={Styles.dashes} />
-				<Text style={Styles.price}>{`${this.format(order.price)} / ${this.format(order.price * 1.1)}`}</Text>
+				<Text style={[Styles.price, (order.deleted ? Styles.lineThrough : null)]}>{`${this.format(order.price)} / ${this.format(order.price * 1.1)}`}</Text>
 				<Badge primary style={{margin: 5}}>
 					<Text>{order.by.letters}</Text>
 				</Badge>
@@ -534,7 +561,7 @@ export default class App extends Component<Props> {
 		if ((this.state.users) && (this.state.users.length > 0)) {
 
 			return (
-				<ScrollView horizontal>
+				<ScrollView horizontal style={{flex: 1}}>
 					{this.renderUsers(withValues)}
 				</ScrollView>
 			);
@@ -619,7 +646,7 @@ export default class App extends Component<Props> {
 						<Text>Adicionar</Text>
 					</Button>
 					<View />
-					<Text style={Styles.label}>Demonstrativo:</Text>
+					<Text style={[Styles.label, {marginTop: 10, marginBottom: 10}]}>Demonstrativo:</Text>
 					<FlatList extraData={this.state} data={this.state.orders} keyExtractor={this.getKeyExtractor.bind(this)} renderItem={this.renderItem.bind(this)} style={{marginTop: 5, marginBottom: 5}} />
 					<View style={Styles.row}>
 						<Text style={Styles.total}>{this.renderTotal()}</Text>
@@ -644,7 +671,7 @@ export default class App extends Component<Props> {
 						<Title>Restaurante</Title>
 					</Body>
 				</Header>
-				<Tabs scrollWithoutAnimation>
+				<Tabs scrollWithoutAnimation locked>
 					<Tab heading="Principal">
 						{this.renderPrincipal()}
 					</Tab>
