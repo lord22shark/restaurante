@@ -141,6 +141,8 @@ export default class App extends Component<Props> {
 
 		this.camera = null;
 
+		this.ws = null;
+
 	}
 
 	/**
@@ -155,12 +157,44 @@ export default class App extends Component<Props> {
 	 */
 	componentDidMount () {
 
+		this.ws = new WebSocket('ws://192.168.7.137:8000');
+
+		this.ws.onmessage = (message) => {
+
+			Alert.alert('WEBSOCKET', message.data);
+
+		};
+
+		this.ws.onerror = (e) => {
+
+			Alert.alert('ERROR', e.message);
+
+		};
+
+		this.ws.onclose = () => {
+
+			Alert.alert('OOPS', 'Fechô');
+
+		};
+
 	}
 
 	/**
 	 *
 	 */
 	componentWillUnmount () {
+
+	}
+
+	closeWS () {
+
+		if (this.ws) {
+
+			this.ws.close();
+
+			this.ws = null;
+		}
+
 
 	}
 
@@ -623,6 +657,9 @@ export default class App extends Component<Props> {
 
 			return (
 				<Content style={Styles.content}>
+					<TouchableHighlight onPress={this.closeWS.bind(this)}>
+						<Text>;-)</Text>
+					</TouchableHighlight>
 					<View>
 						<Text style={Styles.label}>Nome:</Text>
 						<View style={Styles.row}>
